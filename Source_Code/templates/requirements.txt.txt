@@ -1,0 +1,11 @@
+tensorflow
+numpy
+opencv-python
+pandas
+matplotlib
+scikit-learn
+pydicom
+efficientnet
+nltk
+flask
+flask-cors

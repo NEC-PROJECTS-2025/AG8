@@ -1,0 +1,68 @@
+from flask import Flask, request, render_template, jsonify
+import os
+from tensorflow.keras.models import load_model
+import numpy as np
+from PIL import Image
+
+app = Flask(_name_)
+UPLOAD_FOLDER = "uploads"
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+# Ensure the uploads folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Load the trained model from the .h5 file
+model = load_model("my_model.h5")
+
+# Function to preprocess image before passing to the model
+def preprocess_image(image_path):
+    """
+    Preprocess the uploaded image for model prediction.
+    
+    Parameters:
+        image_path (str): Path to the uploaded image.
+    
+    Returns:
+        np.array: Preprocessed image ready for model input.
+    """
+    img = Image.open(image_path)
+    img = img.resize((224, 224))  # Resize to the input shape expected by the model (update as necessary)
+    img = np.array(img) / 255.0  # Normalize the image (if required by the model)
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/upload", methods=["POST"])
+def upload():
+    if "frontal_image" not in request.files or "lateral_image" not in request.files:
+        return jsonify({"error": "Both frontal and lateral images are required"}), 400
+
+    frontal_image = request.files["frontal_image"]
+    lateral_image = request.files["lateral_image"]
+
+    # Save files temporarily
+    frontal_path = os.path.join(app.config["UPLOAD_FOLDER"], frontal_image.filename)
+    lateral_path = os.path.join(app.config["UPLOAD_FOLDER"], lateral_image.filename)
+    frontal_image.save(frontal_path)
+    lateral_image.save(lateral_path)
+
+    # Preprocess one image (since both captions are the same)
+    preprocessed_img = preprocess_image(frontal_path)
+
+    # Generate prediction using the model (use only one image, either frontal or lateral)
+    prediction = model.predict(preprocessed_img)
+
+    # Assuming the model outputs a caption directly as text
+    caption = "Generated Caption: " + str(np.argmax(prediction))  # Replace this with actual caption generation logic
+
+    # Return the caption
+    return jsonify({
+        "caption": caption,
+        "prediction": prediction.tolist(),  # Model output as a list
+    })
+
+if _name_ == "_main_":
+    app.run(debug=True)
